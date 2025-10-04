@@ -1,0 +1,1127 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Pomodoro + Tasks (Vanilla)</title>
+
+    <style>
+        /* -------------------------
+       Design Tokens & Defaults
+       ------------------------- */
+        
+         :root {
+            --primary: #088F8F;
+            --break: #D4B04C;
+            --success: #10B981;
+            --bg: #F3F4F6;
+            /* gray-50 */
+            --card: #FFFFFF;
+            --muted: #6B7280;
+            --glass: rgba(255, 255, 255, 0.8);
+            --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+            --radius-lg: 18px;
+            --radius-md: 12px;
+            --max-width: 720px;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+        /* -------------------------
+       Layout
+       ------------------------- */
+        
+        html,
+        body {
+            height: 100%
+        }
+        
+        body {
+            margin: 0;
+            background: var(--bg);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            color: #111827;
+        }
+        
+        .app-shell {
+            width: 100%;
+            max-width: var(--max-width);
+            min-height: 88vh;
+            background: var(--card);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        main.content {
+            padding: 20px;
+            flex: 1 1 auto;
+            overflow: auto;
+        }
+        /* -------------------------
+       Typography
+       ------------------------- */
+        
+        h1 {
+            margin: 0
+        }
+        
+        .title-lg {
+            font-size: 28px;
+            font-weight: 800
+        }
+        
+        .title-md {
+            font-size: 20px;
+            font-weight: 700
+        }
+        
+        .muted {
+            color: var(--muted)
+        }
+        /* -------------------------
+       Bottom Nav
+       ------------------------- */
+        
+        .nav {
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid rgba(0, 0, 0, 0.03);
+            padding: 8px;
+            display: flex;
+            justify-content: center;
+            z-index: 20;
+        }
+        
+        .nav-inner {
+            width: 100%;
+            max-width: 560px;
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .nav-btn {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            border-radius: 12px;
+            background: transparent;
+            border: 0;
+            cursor: pointer;
+            color: #6B7280;
+            font-size: 12px;
+        }
+        
+        .nav-btn.active {
+            color: white;
+            background: var(--primary);
+        }
+        /* -------------------------
+       Timer View
+       ------------------------- */
+        
+        .timer-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px
+        }
+        
+        .status-card {
+            width: 100%;
+            max-width: 360px;
+            background: var(--card);
+            border-radius: 14px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+            padding: 16px;
+            text-align: center;
+            border-bottom: 4px solid var(--primary);
+        }
+        
+        .status-pill {
+            display: inline-block;
+            padding: 6px 10px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .svg-timer {
+            width: 288px;
+            height: 288px;
+            position: relative;
+        }
+        
+        .timer-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .time-big {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+            font-size: 56px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        
+        .time-sub {
+            margin-top: 8px;
+            color: #6B7280;
+            font-weight: 600
+        }
+        
+        .controls {
+            display: flex;
+            gap: 14px;
+            margin-top: 10px;
+            width: 100%;
+            max-width: 420px;
+            justify-content: center;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 0;
+            cursor: pointer;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 6px 14px rgba(2, 6, 23, 0.06);
+        }
+        
+        .btn.secondary {
+            background: #E5E7EB;
+            color: #111827
+        }
+        
+        .btn.primary {
+            background: var(--primary);
+            color: white
+        }
+        /* -------------------------
+       Task View
+       ------------------------- */
+        
+        .tasks-wrap {
+            max-width: 680px;
+            margin: 0 auto
+        }
+        
+        .add-task {
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+            align-items: center;
+        }
+        
+        .add-task input {
+            flex: 1;
+            border: 0;
+            outline: none;
+            padding: 12px;
+            font-size: 15px;
+            border-radius: 8px;
+        }
+        
+        .round-btn {
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 0;
+            color: white;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .task-list {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px
+        }
+        
+        .task-item {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            border-radius: 12px;
+            background: white;
+            box-shadow: 0 6px 12px rgba(2, 6, 23, 0.04);
+            border-left: 6px solid var(--primary);
+            justify-content: space-between;
+        }
+        
+        .task-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex: 1
+        }
+        
+        .task-name {
+            font-size: 16px;
+            font-weight: 600
+        }
+        
+        .task-name.done {
+            color: #9CA3AF;
+            text-decoration: line-through;
+            font-weight: 600
+        }
+        
+        .pill {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            color: white;
+            font-weight: 700;
+        }
+        
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center
+        }
+        /* -------------------------
+       Cards/Grids for tracking/rewards
+       ------------------------- */
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px
+        }
+        
+        .card {
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            box-shadow: 0 6px 14px rgba(2, 6, 23, 0.04);
+        }
+        
+        .center {
+            display: flex;
+            align-items: center;
+            justify-content: center
+        }
+        /* -------------------------
+       Modal
+       ------------------------- */
+        
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 60;
+        }
+        
+        .modal {
+            background: white;
+            padding: 20px;
+            border-radius: 14px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 20px 46px rgba(2, 6, 23, 0.26);
+        }
+        
+        .modal .row {
+            margin-bottom: 12px
+        }
+        
+        .modal input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid #E5E7EB;
+            outline: none;
+            font-size: 15px
+        }
+        /* -------------------------
+       Small
+       ------------------------- */
+        
+        .muted-sm {
+            color: #6B7280;
+            font-size: 13px
+        }
+        
+        .tiny {
+            font-size: 12px
+        }
+        
+        .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block
+        }
+        
+        @media (max-width:720px) {
+            body {
+                padding: 12px
+            }
+            .title-lg {
+                font-size: 22px
+            }
+            .svg-timer {
+                width: 220px;
+                height: 220px
+            }
+            .time-big {
+                font-size: 44px
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="app-shell" id="app">
+        <main class="content" id="content">
+
+            <!-- Timer View (default) -->
+            <section id="view-timer" class="view active">
+                <div style="position:relative">
+                    <button id="open-settings" title="Settings" style="position:absolute;right:18px;top:6px;border:0;background:transparent;cursor:pointer;color:#6B7280">
+            <!-- settings icon -->
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09c.7 0 1.28-.39 1.51-1a1.65 1.65 0 00-.33-1.82L3.31 6.34a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 008 3.31c.47-.22 1-.22 1.51 0H10a2 2 0 110 4h-.09c-.7 0-1.28.39-1.51 1a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 012.83-2.83l.06-.06c.47-.22 1.01-.22 1.51 0h.09a2 2 0 110 4h-.09c-.7 0-1.28.39-1.51 1a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 012.83-2.83l.06-.06a1.65 1.65 0 001.82-.33" /></svg>
+          </button>
+                    <h1 class="title-lg" style="text-align:center;margin-bottom:18px">Pomodoro</h1>
+                </div>
+
+                <div class="timer-wrap">
+                    <div id="statusCard" class="status-card" style="border-bottom-color:var(--primary)">
+                        <div id="statusPill" class="status-pill" style="background:var(--primary)">FOCUS TIME</div>
+                        <p class="muted-sm" id="next-info" style="margin-top:10px">Next break in 5 min</p>
+                    </div>
+
+                    <!-- Circular Timer -->
+                    <div class="svg-timer" id="svgTimer">
+                        <svg viewBox="0 0 100 100" style="width:100%;height:100%;transform:rotate(-90deg)">
+              <circle cx="50" cy="50" r="45" fill="transparent" stroke="#e5e7eb" stroke-width="8"></circle>
+              <circle id="progressCircle" cx="50" cy="50" r="45" fill="transparent" stroke="var(--primary)" stroke-width="8"
+                      stroke-dasharray="282.743" stroke-dashoffset="0" stroke-linecap="round"></circle>
+            </svg>
+
+                        <div class="timer-center">
+                            <div class="time-big" id="timeDisplay">25:00</div>
+                            <div class="time-sub" id="timerStateLabel">Ready</div>
+                        </div>
+                    </div>
+
+                    <!-- Current Task -->
+                    <div class="card" style="max-width:360px;text-align:center;border-top:3px solid var(--primary);margin-top:8px">
+                        <div class="muted-sm">Currently Focused On:</div>
+                        <div style="margin-top:6px;font-weight:700" id="currentTaskName">No active task</div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="controls">
+                        <button id="startPauseBtn" class="btn primary">
+              <div id="startIcon" style="display:flex;align-items:center;justify-content:center">
+                <!-- play icon -->
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3v18l15-9z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </div>
+              <div id="startLabel">Start</div>
+            </button>
+
+                        <button id="resetBtn" class="btn secondary">
+              <!-- reset icon -->
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 12a9 9 0 11-3.6-7.2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 3v6h-6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <div class="tiny">Reset</div>
+            </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tasks View -->
+            <section id="view-tasks" class="view" style="display:none">
+                <div class="tasks-wrap">
+                    <h1 class="title-md">Task Manager</h1>
+                    <div style="height:12px"></div>
+
+                    <div class="add-task">
+                        <input id="newTaskInput" placeholder="Add a new task..." />
+                        <button id="addTaskBtn" class="round-btn" style="background:var(--primary)"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 5v14M5 12h14" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"/></svg></button>
+                    </div>
+                    <div id="taskError" style="color:#ef4444;margin-top:6px;font-weight:600;display:none"></div>
+
+                    <div class="task-list" id="taskList" aria-live="polite" style="margin-top:14px">
+                        <!-- tasks injected here -->
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- Tracking View -->
+            <section id="view-tracking" class="view" style="display:none">
+                <h1 class="title-md">Activity Tracking</h1>
+                <p class="muted-sm">Your productivity snapshot (non-interactive display).</p>
+
+                <div style="height:12px"></div>
+                <div class="grid-2">
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div class="icon center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 6v6l4 2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div>
+                                <div class="muted-sm">Total Pomodoros</div>
+                                <div style="font-weight:800;font-size:20px" id="statPoms">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div class="icon center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v6h6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div>
+                                <div class="muted-sm">Total Focus Time (min)</div>
+                                <div style="font-weight:800;font-size:20px" id="statMinutes">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div class="icon center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 7h7l-5.5 4 2 7L12 17l-6.5 3 2-7L2 9h7z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div>
+                                <div class="muted-sm">Completed Tasks</div>
+                                <div style="font-weight:800;font-size:20px" id="statCompleted">0</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div style="display:flex;align-items:center;gap:8px">
+                            <div class="icon center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3h18v18H3z" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                            <div>
+                                <div class="muted-sm">Total Tasks</div>
+                                <div style="font-weight:800;font-size:20px" id="statTotal">0</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="height:14px"></div>
+                <div class="card" style="height:200px;display:flex;align-items:center;justify-content:center;border:2px dashed #E5E7EB">
+                    <div class="muted-sm">Mock Productivity Graph Placeholder</div>
+                </div>
+            </section>
+
+            <!-- Rewards View -->
+            <section id="view-rewards" class="view" style="display:none">
+                <h1 class="title-md">Rewards Center</h1>
+                <div style="height:10px"></div>
+
+                <div class="card" style="display:flex;justify-content:space-between;align-items:center;background:var(--primary);color:white">
+                    <div style="display:flex;gap:12px;align-items:center">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 7h7l-5.5 4 2 7L12 17l-6.5 3 2-7L2 9h7z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                        <div style="font-weight:800">Your Focus Points:</div>
+                    </div>
+                    <div style="font-weight:900;font-size:28px" id="pointsDisplay">0</div>
+                </div>
+
+                <div style="height:12px"></div>
+                <div class="grid-2" id="rewardsGrid">
+                    <!-- rewards populate -->
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Bottom navigation -->
+        <nav class="nav">
+            <div class="nav-inner">
+                <button class="nav-btn active" data-view="Timer" id="navTimer">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 8v5l4 2" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>Timer</div>
+        </button>
+
+                <button class="nav-btn" data-view="Tasks" id="navTasks">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 12l5 5L20 7" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>Tasks</div>
+        </button>
+
+                <button class="nav-btn" data-view="Tracking" id="navTracking">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3v18h18" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>Tracking</div>
+        </button>
+
+                <button class="nav-btn" data-view="Rewards" id="navRewards">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 7h7l-5.5 4 2 7L12 17 6.5 20 8.5 13 3 9h7z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>Rewards</div>
+        </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Settings Modal (rendered dynamically) -->
+    <div id="modalRoot"></div>
+
+    <script>
+        /* -------------------------
+                                                                                       App State (Vanilla JS)
+                                                                                       ------------------------- */
+
+        // Colors
+        const PRIMARY = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '#088F8F';
+        const BREAK = getComputedStyle(document.documentElement).getPropertyValue('--break').trim() || '#D4B04C';
+        const SUCCESS = getComputedStyle(document.documentElement).getPropertyValue('--success').trim() || '#10B981';
+
+        // Initial tasks (mimic your initialTasks)
+        const tasks = [{
+            id: crypto && crypto.randomUUID ? crypto.randomUUID() : 't1',
+            name: "Design Mobile UI with Teal Color",
+            done: true,
+            pomodoros: 1
+        }, {
+            id: crypto && crypto.randomUUID ? crypto.randomUUID() : 't2',
+            name: "Test Timer Functionality",
+            done: false,
+            pomodoros: 0
+        }, {
+            id: crypto && crypto.randomUUID ? crypto.randomUUID() : 't3',
+            name: "Draft Weekly Productivity Report",
+            done: false,
+            pomodoros: 0
+        }, ];
+
+        // Timer settings (minutes)
+        let focusDuration = 25;
+        let breakDuration = 5;
+
+        // Timer state
+        let isFocusMode = true;
+        let timeLeft = focusDuration * 60; // seconds
+        let timerState = 'idle'; // 'idle' | 'running' | 'paused'
+        let timerInterval = null;
+
+        // Tracking
+        let completedPomodoros = 0;
+
+        // Editing state
+        let editingTaskId = null;
+
+        /* -------------------------
+           Helpers
+           ------------------------- */
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+        }
+
+        function $(sel) {
+            return document.querySelector(sel);
+        }
+
+        function $all(sel) {
+            return Array.from(document.querySelectorAll(sel));
+        }
+
+        /* -------------------------
+           DOM Elements
+           ------------------------- */
+        const timeDisplay = $('#timeDisplay');
+        const timerStateLabel = $('#timerStateLabel');
+        const progressCircle = $('#progressCircle');
+        const statusPill = $('#statusPill');
+        const statusCard = $('#statusCard');
+        const nextInfo = $('#next-info');
+        const currentTaskName = $('#currentTaskName');
+        const startPauseBtn = $('#startPauseBtn');
+        const startLabel = $('#startLabel');
+        const startIcon = $('#startIcon');
+        const resetBtn = $('#resetBtn');
+        const openSettingsBtn = $('#open-settings');
+
+        const newTaskInput = $('#newTaskInput');
+        const addTaskBtn = $('#addTaskBtn');
+        const taskListEl = $('#taskList');
+        const taskError = $('#taskError');
+
+        const statPoms = $('#statPoms');
+        const statMinutes = $('#statMinutes');
+        const statCompleted = $('#statCompleted');
+        const statTotal = $('#statTotal');
+
+        const pointsDisplay = $('#pointsDisplay');
+        const rewardsGrid = $('#rewardsGrid');
+
+        const navButtons = $all('.nav-btn');
+
+        /* -------------------------
+           Render Functions
+           ------------------------- */
+
+        function renderTimerUI() {
+            // time display
+            timeDisplay.textContent = formatTime(timeLeft);
+            // label
+            timerStateLabel.textContent = timerState === 'running' ? 'Working Hard' : timerState === 'paused' ? 'Paused' : 'Ready';
+
+            // pill & card color
+            const timerColor = isFocusMode ? PRIMARY : BREAK;
+            statusPill.textContent = isFocusMode ? 'FOCUS TIME' : 'BREAK TIME';
+            statusPill.style.background = timerColor;
+            statusCard.style.borderBottomColor = timerColor;
+            // next info
+            nextInfo.textContent = isFocusMode ? `Next break in ${breakDuration} min` : `Next focus in ${focusDuration} min`;
+
+            // progress circle
+            const total = isFocusMode ? focusDuration * 60 : breakDuration * 60;
+            const circumference = 2 * Math.PI * 45; // r=45
+            const fraction = (timeLeft / total);
+            // clamp
+            const offset = circumference * (1 - fraction);
+            progressCircle.setAttribute('stroke-dasharray', circumference.toString());
+            progressCircle.setAttribute('stroke-dashoffset', offset.toString());
+            progressCircle.style.stroke = timerColor;
+
+            // current task
+            const activeTask = tasks.find(t => !t.done);
+            currentTaskName.textContent = activeTask ? activeTask.name : "No active task";
+
+            // Start button label/icon
+            if (timerState === 'running') {
+                startLabel.textContent = 'Pause';
+                startPauseBtn.classList.remove('primary');
+                startPauseBtn.style.background = '';
+                // show pause icon
+                startIcon.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            } else {
+                startLabel.textContent = 'Start';
+                startPauseBtn.classList.add('primary');
+                startPauseBtn.style.background = isFocusMode ? PRIMARY : BREAK;
+                // show play icon
+                startIcon.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 3v18l15-9z" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+            }
+        }
+
+        function renderTasks() {
+            taskListEl.innerHTML = '';
+            if (tasks.length === 0) {
+                const p = document.createElement('p');
+                p.className = 'muted-sm';
+                p.textContent = 'No tasks yet! Add one to start focusing.';
+                taskListEl.appendChild(p);
+                return;
+            }
+
+            tasks.forEach(task => {
+                const li = document.createElement('div');
+                li.className = 'task-item';
+                li.dataset.id = task.id;
+
+                // left
+                const left = document.createElement('div');
+                left.className = 'task-left';
+
+                // checkbox
+                const chk = document.createElement('input');
+                chk.type = 'checkbox';
+                chk.checked = !!task.done;
+                chk.style.width = '20px';
+                chk.style.height = '20px';
+                chk.addEventListener('change', () => {
+                    task.done = !task.done;
+                    console.log(`Task ${task.id} completion status toggled.`);
+                    renderAll();
+                });
+
+                left.appendChild(chk);
+
+                // name or input if editing
+                if (editingTaskId === task.id) {
+                    const input = document.createElement('input');
+                    input.value = task.name;
+                    input.style.padding = '8px';
+                    input.style.borderRadius = '8px';
+                    input.style.border = '1px solid #E5E7EB';
+                    input.style.fontWeight = '700';
+                    input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            const newVal = input.value.trim();
+                            if (newVal === '') {
+                                alert('Task name cannot be empty!');
+                                return;
+                            }
+                            task.name = newVal;
+                            editingTaskId = null;
+                            renderAll();
+                        }
+                        if (e.key === 'Escape') {
+                            editingTaskId = null;
+                            renderAll();
+                        }
+                    });
+                    left.appendChild(input);
+                    setTimeout(() => input.focus(), 50);
+                } else {
+                    const name = document.createElement('div');
+                    name.className = 'task-name' + (task.done ? ' done' : '');
+                    name.textContent = task.name;
+                    left.appendChild(name);
+                }
+
+                li.appendChild(left);
+
+                // right actions
+                const right = document.createElement('div');
+                right.className = 'task-actions';
+
+                const pom = document.createElement('div');
+                pom.className = 'pill';
+                pom.style.background = PRIMARY;
+                pom.textContent = `${task.pomodoros} ${task.pomodoros === 1 ? 'Pom' : 'Poms'}`;
+                pom.style.opacity = task.done ? '0.6' : '1';
+                right.appendChild(pom);
+
+                if (editingTaskId !== task.id) {
+                    const editBtn = document.createElement('button');
+                    editBtn.title = 'Edit';
+                    editBtn.style.border = '0';
+                    editBtn.style.background = 'transparent';
+                    editBtn.style.cursor = 'pointer';
+                    editBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 21v-3.3L14.6 6.1a2 2 0 012.8 0l2.5 2.5a2 2 0 010 2.8L8.3 23H3z" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+                    editBtn.addEventListener('click', () => {
+                        editingTaskId = task.id;
+                        renderAll();
+                    });
+                    right.appendChild(editBtn);
+                }
+
+                const delBtn = document.createElement('button');
+                delBtn.title = 'Delete';
+                delBtn.style.border = '0';
+                delBtn.style.background = 'transparent';
+                delBtn.style.cursor = 'pointer';
+                delBtn.innerHTML = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M8 6v13a2 2 0 002 2h4a2 2 0 002-2V6M10 6V4a2 2 0 012-2h0a2 2 0 012 2v2" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+                delBtn.addEventListener('click', () => {
+                    const idx = tasks.findIndex(t => t.id === task.id);
+                    if (idx !== -1) tasks.splice(idx, 1);
+                    console.log(`Task ${task.id} deleted.`);
+                    renderAll();
+                });
+                right.appendChild(delBtn);
+
+                li.appendChild(right);
+                taskListEl.appendChild(li);
+            });
+        }
+
+        function renderTracking() {
+            statPoms.textContent = completedPomodoros;
+            statMinutes.textContent = completedPomodoros * focusDuration;
+            statCompleted.textContent = tasks.filter(t => t.done).length;
+            statTotal.textContent = tasks.length;
+        }
+
+        function renderRewards() {
+            const points = completedPomodoros * 10;
+            pointsDisplay.textContent = points;
+            rewardsGrid.innerHTML = '';
+
+            const rewardsList = [{
+                id: 1,
+                name: "Teal Background Unlock",
+                cost: 50,
+                acquired: points >= 50
+            }, {
+                id: 2,
+                name: "Super Focus Badge",
+                cost: 100,
+                acquired: points >= 100
+            }, {
+                id: 3,
+                name: "Deep Work Master Icon",
+                cost: 200,
+                acquired: points >= 200
+            }, ];
+
+            rewardsList.forEach(rew => {
+                const c = document.createElement('div');
+                c.className = 'card center';
+                c.style.flexDirection = 'column';
+                c.style.padding = '18px';
+                c.style.textAlign = 'center';
+                c.style.border = '1px solid #E5E7EB';
+                if (rew.acquired) {
+                    c.style.background = '#ECFDF5';
+                    c.style.borderColor = '#86EFAC';
+                }
+                c.innerHTML = `
+          <div style="margin-bottom:10px"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3 7h7l-5.5 4 2 7L12 17 6.5 20 8.5 13 3 9h7z" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div style="font-weight:800">${rew.name}</div>
+          <div style="margin-top:8px" class="tiny">${rew.acquired ? 'Acquired!' : rew.cost + ' Points'}</div>
+        `;
+                rewardsGrid.appendChild(c);
+            });
+        }
+
+        function renderAll() {
+            renderTimerUI();
+            renderTasks();
+            renderTracking();
+            renderRewards();
+        }
+
+        /* -------------------------
+           Timer Mechanics
+           ------------------------- */
+
+        function clearTimerInterval() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function startTimer() {
+            if (timerState === 'running') return;
+            if (timeLeft === 0) {
+                // reset to current mode duration
+                timeLeft = isFocusMode ? focusDuration * 60 : breakDuration * 60;
+            }
+            timerState = 'running';
+            renderTimerUI();
+
+            clearTimerInterval();
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft -= 1;
+                    renderTimerUI();
+                } else {
+                    // timeLeft reached 0
+                    clearTimerInterval();
+
+                    if (isFocusMode) {
+                        completedPomodoros += 1;
+                        // find first unfinished task
+                        const activeTask = tasks.find(t => !t.done);
+                        if (activeTask) {
+                            activeTask.pomodoros = (activeTask.pomodoros || 0) + 1;
+                        }
+                        console.log("🔔 Focus complete! Time for a break. Pomodoro count increased.");
+                    } else {
+                        console.log("🔔 Break complete! Time to focus.");
+                    }
+
+                    // switch mode
+                    isFocusMode = !isFocusMode;
+                    // reset to new mode duration but set idle so user must start
+                    timeLeft = isFocusMode ? focusDuration * 60 : breakDuration * 60;
+                    timerState = 'idle';
+                    renderAll();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            timerState = 'paused';
+            clearTimerInterval();
+            renderTimerUI();
+        }
+
+        function resetTimer() {
+            timerState = 'idle';
+            clearTimerInterval();
+            timeLeft = isFocusMode ? focusDuration * 60 : breakDuration * 60;
+            renderTimerUI();
+        }
+
+        /* -------------------------
+           Settings Modal
+           ------------------------- */
+        function openSettings() {
+            const root = $('#modalRoot');
+            root.innerHTML = `
+        <div class="modal-backdrop" id="modalBackdrop">
+          <div class="modal" role="dialog" aria-modal="true">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+              <div style="font-weight:800;font-size:18px">Timer Settings</div>
+              <button id="closeModalBtn" style="border:0;background:transparent;cursor:pointer"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 6l12 12M6 18L18 6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div>
+            <div class="row">
+              <label class="muted-sm">Focus Duration (minutes)</label>
+              <input id="modalFocus" type="number" min="1" value="${focusDuration}" />
+            </div>
+            <div class="row">
+              <label class="muted-sm">Break Duration (minutes)</label>
+              <input id="modalBreak" type="number" min="1" value="${breakDuration}" />
+            </div>
+
+            <div style="height:8px"></div>
+            <button id="saveSettingsBtn" style="width:100%;padding:12px;border-radius:10px;border:0;background:var(--primary);color:white;font-weight:700">Save Settings</button>
+          </div>
+        </div>
+      `;
+            // focus the first input
+            setTimeout(() => {
+                const f = $('#modalFocus');
+                if (f) f.focus();
+            }, 50);
+
+            // attach events
+            $('#closeModalBtn').addEventListener('click', closeSettings);
+            $('#modalBackdrop').addEventListener('click', (e) => {
+                if (e.target === $('#modalBackdrop')) closeSettings();
+            });
+            $('#saveSettingsBtn').addEventListener('click', () => {
+                const nf = parseInt($('#modalFocus').value, 10);
+                const nb = parseInt($('#modalBreak').value, 10);
+                if (Number.isNaN(nf) || Number.isNaN(nb) || nf < 1 || nb < 1) {
+                    alert('Durations must be greater than 0.');
+                    return;
+                }
+                saveSettings(nf, nb);
+                closeSettings();
+            });
+        }
+
+        function closeSettings() {
+            $('#modalRoot').innerHTML = '';
+        }
+
+        function saveSettings(newFocus, newBreak) {
+            focusDuration = newFocus;
+            breakDuration = newBreak;
+            // reset timer to focus mode and idle
+            isFocusMode = true;
+            timerState = 'idle';
+            clearTimerInterval();
+            timeLeft = focusDuration * 60;
+            console.log(`Settings saved: Focus ${newFocus} min, Break ${newBreak} min.`);
+            renderAll();
+        }
+
+        /* -------------------------
+           Add Task Handler
+           ------------------------- */
+        function addTaskFromInput() {
+            const v = newTaskInput.value.trim();
+            if (v === '') {
+                taskError.style.display = 'block';
+                taskError.textContent = 'Task name cannot be empty. Please enter a description.';
+                return;
+            }
+            taskError.style.display = 'none';
+            const newTask = {
+                id: crypto && crypto.randomUUID ? crypto.randomUUID() : `t${Date.now()}`,
+                name: v,
+                done: false,
+                pomodoros: 0
+            };
+            tasks.push(newTask);
+            newTaskInput.value = '';
+            console.log('Task Added successfully:', newTask.name);
+            renderAll();
+        }
+
+        /* -------------------------
+           Navigation
+           ------------------------- */
+        function showView(name) {
+            // hide all
+            $all('.view').forEach(v => v.style.display = 'none');
+            // remove active nav
+            navButtons.forEach(nb => nb.classList.remove('active'));
+            // show chosen
+            const map = {
+                'Timer': 'view-timer',
+                'Tasks': 'view-tasks',
+                'Tracking': 'view-tracking',
+                'Rewards': 'view-rewards'
+            };
+            const el = document.getElementById(map[name]);
+            if (el) el.style.display = '';
+            // mark nav
+            $all('.nav-btn').forEach(btn => {
+                if (btn.getAttribute('data-view') === name) btn.classList.add('active');
+            });
+            // small adjustment: renderAll to update display
+            renderAll();
+        }
+
+        /* -------------------------
+           Events
+           ------------------------- */
+        startPauseBtn.addEventListener('click', () => {
+            if (timerState === 'running') {
+                pauseTimer();
+                console.log('Timer paused.');
+            } else {
+                startTimer();
+                console.log('Timer started/resumed.');
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            resetTimer();
+            console.log('Timer reset.');
+        });
+
+        openSettingsBtn.addEventListener('click', () => openSettings());
+
+        addTaskBtn.addEventListener('click', addTaskFromInput);
+        newTaskInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addTaskFromInput();
+            if (taskError.style.display === 'block') taskError.style.display = 'none';
+        });
+
+        // nav buttons
+        navButtons.forEach(btn => {
+            btn.addEventListener('click', () => showView(btn.getAttribute('data-view')));
+        });
+
+        // keyboard support: space toggles start/pause when on timer view
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                if (document.getElementById('view-timer').style.display !== 'none') {
+                    if (timerState === 'running') pauseTimer();
+                    else startTimer();
+                }
+            }
+        });
+
+        /* -------------------------
+           Init Render
+           ------------------------- */
+        renderAll();
+        showView('Timer');
+    </script>
+</body>
+
+</html>
